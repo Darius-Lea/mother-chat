@@ -31,7 +31,7 @@ from mother_model import BOS, EOS, PAD, generate, load_champion
 
 BASE_DIR = Path(__file__).resolve().parent
 MODEL_PATH = Path(os.environ.get(
-    "MOTHER_MODEL_PATH", BASE_DIR / "models" / "stageR16_champion.pt"))
+    "MOTHER_MODEL_PATH", BASE_DIR / "models" / "stageR17_champion.pt"))
 TOKENIZER_PATH = Path(os.environ.get(
     "MOTHER_TOKENIZER_PATH", BASE_DIR / "models" / "mother_v006.model"))
 MAX_TOKENS = int(os.environ.get("MOTHER_MAX_TOKENS", "48"))
