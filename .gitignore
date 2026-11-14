@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+.venv/
+feedback.db
+*.tmp-*
+# The reassembled weights file (built at deploy time from the parts below).
+models/*.pt

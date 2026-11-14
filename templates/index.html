@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Talk to MOTHER</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+         margin: 0; background: #f4f1ea; color: #222; }
+  header { background: #2b2b3a; color: #fff; padding: 16px; text-align: center; }
+  header h1 { margin: 0; font-size: 1.4em; }
+  header p { margin: 6px 0 0; font-size: 0.9em; color: #cfcfe0; }
+  #wrap { max-width: 640px; margin: 0 auto; padding: 12px 12px 120px; }
+  .banner { background: #fff3cd; border: 1px solid #e6c87a; border-radius: 8px;
+            padding: 12px; margin-bottom: 12px; font-size: 0.95em; }
+  .banner.error { background: #fdecea; border-color: #e0a09a; }
+  .msg { background: #fff; border-radius: 10px; padding: 12px 14px;
+         margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  .msg .q { font-weight: 600; margin-bottom: 6px; }
+  .msg .a { white-space: pre-wrap; }
+  .msg .meta { font-size: 0.8em; color: #888; margin-top: 6px; }
+  .rate { margin-top: 10px; border-top: 1px solid #eee; padding-top: 10px; }
+  .rate button { font-size: 1.1em; padding: 6px 14px; margin-right: 8px;
+                 border: 1px solid #ccc; border-radius: 20px; background: #fff;
+                 cursor: pointer; }
+  .rate button.on-up { background: #d9f2dd; border-color: #6fbf7a; }
+  .rate button.on-down { background: #fde0dd; border-color: #d97a72; }
+  .rate button:disabled { opacity: 0.6; cursor: default; }
+  .rate input[type=text] { width: 100%; margin-top: 8px; padding: 8px;
+                           border: 1px solid #ccc; border-radius: 8px; font-size: 0.95em; }
+  .rate .sendwhy { font-size: 0.9em; padding: 6px 12px; margin-top: 8px;
+                   border: 1px solid #2b2b3a; border-radius: 20px;
+                   background: #2b2b3a; color: #fff; cursor: pointer; }
+  .rate .saved { color: #2e7d32; font-size: 0.9em; margin-top: 6px; }
+  #composer { position: fixed; left: 0; right: 0; bottom: 0; background: #fff;
+              border-top: 1px solid #ddd; padding: 10px; }
+  #composer .inner { max-width: 640px; margin: 0 auto; display: flex; gap: 8px; }
+  #composer input[type=text] { flex: 1; padding: 12px; font-size: 1em;
+                               border: 1px solid #ccc; border-radius: 24px; }
+  #composer button { padding: 12px 20px; font-size: 1em; border: none;
+                     border-radius: 24px; background: #2b2b3a; color: #fff;
+                     cursor: pointer; }
+  #composer button:disabled { opacity: 0.5; }
+  .thinking { color: #888; font-style: italic; }
+  footer { text-align: center; font-size: 0.8em; color: #999; padding: 16px; }
+  footer a { color: #666; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Talk to MOTHER</h1>
+  <p>Ask her a question. Thumbs up or down on every answer, and tell her why,
+     your ratings teach her for the next round.</p>
+</header>
+<div id="wrap">
+  {% if not model_ready %}
+  <div class="banner error"><strong>MOTHER is not ready yet.</strong><br>
+    {{ model_error or "The model did not load. Check the service logs." }}</div>
+  {% else %}
+  <div class="banner">MOTHER is running
+    {% if model_info and model_info.stage %}({{ model_info.stage }},
+    epoch {{ model_info.epoch }}){% endif %}.
+    She is still learning, she gets things wrong. Your thumbs up and down
+    plus the reason why are what teach her.</div>
+  {% endif %}
+  <div id="chat"></div>
+</div>
+<div id="composer">
+  <div class="inner">
+    <input type="text" id="q" placeholder="Ask MOTHER something..." maxlength="500"
+           autocomplete="off" {% if not model_ready %}disabled{% endif %}>
+    <button id="send" {% if not model_ready %}disabled{% endif %}>Ask</button>
+  </div>
+</div>
+<footer><a href="/feedback">See all feedback</a> &middot;
+  <a href="/feedback/export">Download feedback (JSON)</a></footer>
+
+<script>
+const chat = document.getElementById('chat');
+const qInput = document.getElementById('q');
+const sendBtn = document.getElementById('send');
+
+function esc(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function addExchange(q, a, id, secs) {
+  const div = document.createElement('div');
+  div.className = 'msg';
+  div.innerHTML =
+    '<div class="q">You: ' + esc(q) + '</div>' +
+    '<div class="a">MOTHER: ' + esc(a) + '</div>' +
+    '<div class="meta">answered in ' + secs + 's</div>' +
+    '<div class="rate">' +
+      '<button class="up" title="Good answer">&#128077;</button>' +
+      '<button class="down" title="Wrong answer">&#128078;</button>' +
+      '<input type="text" placeholder="Why is it right or wrong?" maxlength="1000">' +
+      '<button class="sendwhy">Save rating</button>' +
+      '<div class="saved" style="display:none">Saved, thank you. This goes into her next training round.</div>' +
+    '</div>';
+  chat.appendChild(div);
+  const up = div.querySelector('.up'), down = div.querySelector('.down');
+  const why = div.querySelector('input[type=text]');
+  const save = div.querySelector('.sendwhy');
+  const saved = div.querySelector('.saved');
+  let rating = null;
+  up.onclick = () => { rating = 'up'; up.classList.add('on-up'); down.classList.remove('on-down'); };
+  down.onclick = () => { rating = 'down'; down.classList.add('on-down'); up.classList.remove('on-up'); };
+  save.onclick = async () => {
+    if (!rating) { save.textContent = 'Pick thumbs up or down first'; return; }
+    save.disabled = true;
+    const res = await fetch('/feedback', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({exchange_id: id, rating: rating, reason: why.value})
+    });
+    if (res.ok) {
+      saved.style.display = 'block';
+      up.disabled = down.disabled = true; why.disabled = true;
+      save.style.display = 'none';
+    } else {
+      save.textContent = 'Could not save, try again';
+      save.disabled = false;
+    }
+  };
+  window.scrollTo(0, document.body.scrollHeight);
+}
+
+async function ask() {
+  const q = qInput.value.trim();
+  if (!q) return;
+  qInput.value = '';
+  sendBtn.disabled = true;
+  const thinking = document.createElement('div');
+  thinking.className = 'msg thinking';
+  thinking.textContent = 'MOTHER is thinking...';
+  chat.appendChild(thinking);
+  try {
+    const res = await fetch('/ask', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({question: q})
+    });
+    const data = await res.json();
+    thinking.remove();
+    if (!res.ok) {
+      const err = document.createElement('div');
+      err.className = 'msg';
+      err.innerHTML = '<div class="a">' + esc(data.error || 'Something went wrong.') + '</div>';
+      chat.appendChild(err);
+    } else {
+      addExchange(data.question, data.answer, data.exchange_id, data.seconds);
+    }
+  } catch (e) {
+    thinking.remove();
+    const err = document.createElement('div');
+    err.className = 'msg';
+    err.textContent = 'Could not reach MOTHER. Check your connection and try again.';
+    chat.appendChild(err);
+  }
+  sendBtn.disabled = false;
+  qInput.focus();
+}
+
+sendBtn.onclick = ask;
+qInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') ask(); });
+qInput.focus();
+</script>
+</body>
+</html>

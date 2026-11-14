@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MOTHER feedback</title>
+<style>
+  body { font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+         margin: 0; background: #f4f1ea; color: #222; }
+  #wrap { max-width: 900px; margin: 0 auto; padding: 16px; }
+  h1 { font-size: 1.3em; }
+  table { width: 100%; border-collapse: collapse; background: #fff; font-size: 0.9em; }
+  th, td { border: 1px solid #ddd; padding: 8px; text-align: left; vertical-align: top; }
+  th { background: #2b2b3a; color: #fff; }
+  .up { color: #2e7d32; font-weight: 700; }
+  .down { color: #c62828; font-weight: 700; }
+  a { color: #2b2b3a; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <h1>MOTHER feedback</h1>
+  <p><a href="/">Back to chat</a> &middot;
+     <a href="/feedback/export">Download JSON</a> &middot;
+     <a href="/feedback/export?format=csv">Download CSV</a></p>
+  {% if rows %}
+  <table>
+    <tr><th>#</th><th>Question</th><th>MOTHER's answer</th><th>Rating</th><th>Why</th><th>When</th></tr>
+    {% for r in rows %}
+    <tr>
+      <td>{{ r.id }}</td>
+      <td>{{ r.question }}</td>
+      <td>{{ r.answer }}</td>
+      <td>{% if r.rating == 'up' %}<span class="up">thumbs up</span>{% elif r.rating == 'down' %}<span class="down">thumbs down</span>{% else %}&mdash;{% endif %}</td>
+      <td>{{ r.reason or '' }}</td>
+      <td>{{ r.created_at }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <p>No conversations yet.</p>
+  {% endif %}
+</div>
+</body>
+</html>
