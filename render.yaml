@@ -3,13 +3,13 @@ services:
     name: mother-chat
     runtime: python
     plan: free
-    buildCommand: cat models/stageR14_champion.pt.part00 models/stageR14_champion.pt.part01 models/stageR14_champion.pt.part02 > models/stageR14_champion.pt && sha256sum -c models/stageR14_champion.pt.sha256 && pip install -r requirements.txt
+    buildCommand: cat models/stageR16_champion.pt.part00 models/stageR16_champion.pt.part01 models/stageR16_champion.pt.part02 > models/stageR16_champion.pt && sha256sum -c models/stageR16_champion.pt.sha256 && pip install -r requirements.txt
     startCommand: gunicorn --workers 1 --threads 4 --timeout 120 --bind 0.0.0.0:$PORT app:app
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0
       - key: MOTHER_MODEL_PATH
-        value: models/stageR14_champion.pt
+        value: models/stageR16_champion.pt
       - key: MOTHER_TOKENIZER_PATH
         value: models/mother_v006.model
       - key: MOTHER_MAX_TOKENS
