@@ -2,167 +2,388 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Talk to MOTHER</title>
 <style>
+  :root {
+    --bg: #fbf7f1;
+    --surface: #ffffff;
+    --ink: #2b2620;
+    --ink-soft: #5d554a;
+    --muted: #9a9083;
+    --line: #efe6da;
+    --accent: #c2703e;
+    --accent-deep: #a85a2e;
+    --accent-soft: #f7e9dc;
+    --user-bubble: #3d342a;
+    --up: #4c8a4f;
+    --down: #c05a4d;
+    --shadow: 0 1px 2px rgba(61, 52, 42, 0.06), 0 4px 16px rgba(61, 52, 42, 0.05);
+  }
   * { box-sizing: border-box; }
-  body { font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-         margin: 0; background: #f4f1ea; color: #222; }
-  header { background: #2b2b3a; color: #fff; padding: 16px; text-align: center; }
-  header h1 { margin: 0; font-size: 1.4em; }
-  header p { margin: 6px 0 0; font-size: 0.9em; color: #cfcfe0; }
-  #wrap { max-width: 640px; margin: 0 auto; padding: 12px 12px 120px; }
-  .banner { background: #fff3cd; border: 1px solid #e6c87a; border-radius: 8px;
-            padding: 12px; margin-bottom: 12px; font-size: 0.95em; }
-  .banner.error { background: #fdecea; border-color: #e0a09a; }
-  .msg { background: #fff; border-radius: 10px; padding: 12px 14px;
-         margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
-  .msg .q { font-weight: 600; margin-bottom: 6px; }
-  .msg .a { white-space: pre-wrap; }
-  .msg .meta { font-size: 0.8em; color: #888; margin-top: 6px; }
-  .rate { margin-top: 10px; border-top: 1px solid #eee; padding-top: 10px; }
-  .rate button { font-size: 1.1em; padding: 6px 14px; margin-right: 8px;
-                 border: 1px solid #ccc; border-radius: 20px; background: #fff;
-                 cursor: pointer; }
-  .rate button.on-up { background: #d9f2dd; border-color: #6fbf7a; }
-  .rate button.on-down { background: #fde0dd; border-color: #d97a72; }
-  .rate button:disabled { opacity: 0.6; cursor: default; }
-  .rate input[type=text] { width: 100%; margin-top: 8px; padding: 8px;
-                           border: 1px solid #ccc; border-radius: 8px; font-size: 0.95em; }
-  .rate .sendwhy { font-size: 0.9em; padding: 6px 12px; margin-top: 8px;
-                   border: 1px solid #2b2b3a; border-radius: 20px;
-                   background: #2b2b3a; color: #fff; cursor: pointer; }
-  .rate .saved { color: #2e7d32; font-size: 0.9em; margin-top: 6px; }
-  #composer { position: fixed; left: 0; right: 0; bottom: 0; background: #fff;
-              border-top: 1px solid #ddd; padding: 10px; }
-  #composer .inner { max-width: 640px; margin: 0 auto; display: flex; gap: 8px; }
-  #composer input[type=text] { flex: 1; padding: 12px; font-size: 1em;
-                               border: 1px solid #ccc; border-radius: 24px; }
-  #composer button { padding: 12px 20px; font-size: 1em; border: none;
-                     border-radius: 24px; background: #2b2b3a; color: #fff;
-                     cursor: pointer; }
-  #composer button:disabled { opacity: 0.5; }
-  .thinking { color: #888; font-style: italic; }
-  footer { text-align: center; font-size: 0.8em; color: #999; padding: 16px; }
-  footer a { color: #666; }
+  html, body { height: 100%; }
+  body {
+    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    margin: 0; background: var(--bg); color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+  }
+  .serif { font-family: Georgia, "Times New Roman", serif; }
+
+  /* ---------- header ---------- */
+  header {
+    position: sticky; top: 0; z-index: 10;
+    background: rgba(251, 247, 241, 0.92);
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--line);
+  }
+  .head-inner {
+    max-width: 680px; margin: 0 auto; padding: 12px 16px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .avatar {
+    flex: 0 0 auto; width: 40px; height: 40px; border-radius: 50%;
+    background: linear-gradient(135deg, #e8a15c, #c2703e);
+    color: #fff; display: flex; align-items: center; justify-content: center;
+    font-family: Georgia, serif; font-size: 1.25em; font-weight: 700;
+    box-shadow: 0 2px 8px rgba(194, 112, 62, 0.35);
+  }
+  .avatar.big { width: 76px; height: 76px; font-size: 2.3em; }
+  .who { flex: 1; min-width: 0; }
+  .who .name { font-family: Georgia, serif; font-size: 1.15em; font-weight: 700; line-height: 1.2; }
+  .who .status { font-size: 0.82em; color: var(--muted); margin-top: 1px; }
+  .who .status .dot {
+    display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+    background: #58a05c; margin-right: 5px; vertical-align: 1px;
+  }
+  .who .status .dot.off { background: #c05a4d; }
+  header a { color: var(--ink-soft); font-size: 0.88em; text-decoration: none; }
+  header a:hover { color: var(--accent-deep); text-decoration: underline; }
+
+  /* ---------- layout ---------- */
+  #wrap { max-width: 680px; margin: 0 auto; padding: 8px 16px 150px; }
+
+  .banner {
+    background: #fdecea; border: 1px solid #f0c4bd; color: #7a2e26;
+    border-radius: 14px; padding: 14px 16px; margin: 12px 0;
+    font-size: 0.95em; line-height: 1.5;
+  }
+
+  /* ---------- empty state ---------- */
+  #empty { text-align: center; padding: 56px 8px 8px; }
+  #empty .avatar { margin: 0 auto 18px; }
+  #empty h1 { font-family: Georgia, serif; font-size: 1.7em; margin: 0 0 8px; font-weight: 700; }
+  #empty p { color: var(--ink-soft); font-size: 1em; line-height: 1.55; margin: 0 auto 26px; max-width: 420px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+  .chip {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 999px; padding: 10px 16px; font-size: 0.95em; color: var(--ink);
+    cursor: pointer; box-shadow: var(--shadow);
+    transition: border-color 0.15s, transform 0.15s;
+  }
+  .chip:hover { border-color: var(--accent); transform: translateY(-1px); }
+  .chip:active { transform: translateY(0); }
+
+  /* ---------- messages ---------- */
+  .row { display: flex; margin: 14px 0; animation: fadein 0.25s ease-out; }
+  @keyframes fadein { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .row { animation: none; } }
+
+  .row.user { justify-content: flex-end; }
+  .bubble {
+    max-width: 82%; padding: 12px 16px; border-radius: 20px;
+    font-size: 1.02em; line-height: 1.55; white-space: pre-wrap; word-wrap: break-word;
+  }
+  .row.user .bubble {
+    background: var(--user-bubble); color: #fdfaf6;
+    border-bottom-right-radius: 6px; box-shadow: var(--shadow);
+  }
+  .row.mother { align-items: flex-start; gap: 10px; }
+  .row.mother .avatar { width: 32px; height: 32px; font-size: 1em; margin-top: 2px; }
+  .row.mother .col { flex: 1; min-width: 0; max-width: 82%; }
+  .row.mother .bubble {
+    background: var(--surface); border: 1px solid var(--line);
+    border-bottom-left-radius: 6px; box-shadow: var(--shadow); max-width: 100%;
+  }
+  .meta { font-size: 0.78em; color: var(--muted); margin-top: 6px; padding-left: 2px; }
+
+  /* ---------- typing ---------- */
+  .dots { display: inline-flex; gap: 5px; padding: 4px 2px; }
+  .dots span {
+    width: 8px; height: 8px; border-radius: 50%; background: #cbbfae;
+    animation: bounce 1.2s infinite;
+  }
+  .dots span:nth-child(2) { animation-delay: 0.15s; }
+  .dots span:nth-child(3) { animation-delay: 0.3s; }
+  @keyframes bounce { 0%, 60%, 100% { transform: translateY(0); opacity: 0.6; } 30% { transform: translateY(-5px); opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { .dots span { animation: none; } }
+
+  /* ---------- rating ---------- */
+  .rate { margin-top: 8px; padding-left: 2px; }
+  .rate .ask { font-size: 0.82em; color: var(--muted); margin-right: 6px; }
+  .rate button.thumb {
+    font-size: 1em; padding: 5px 11px; margin-right: 6px;
+    border: 1px solid var(--line); border-radius: 999px; background: var(--surface);
+    cursor: pointer; transition: border-color 0.15s, background 0.15s;
+  }
+  .rate button.thumb:hover { border-color: var(--accent); }
+  .rate button.thumb.on-up { background: #e6f3e7; border-color: var(--up); }
+  .rate button.thumb.on-down { background: #fbe9e6; border-color: var(--down); }
+  .rate button.thumb:disabled { cursor: default; opacity: 0.85; }
+  .rate .why {
+    display: none; width: 100%; margin-top: 8px; padding: 9px 12px;
+    border: 1px solid var(--line); border-radius: 12px; font-size: 0.92em;
+    background: var(--surface); color: var(--ink); outline: none;
+  }
+  .rate .why:focus { border-color: var(--accent); }
+  .rate .why.show { display: block; }
+  .rate .saved { display: none; color: var(--up); font-size: 0.82em; margin-top: 6px; }
+  .rate .saved.show { display: block; }
+
+  .error-bubble {
+    background: #fdecea; border: 1px solid #f0c4bd; color: #7a2e26;
+    border-radius: 20px; border-bottom-left-radius: 6px;
+    padding: 12px 16px; max-width: 82%; font-size: 0.98em; line-height: 1.5;
+  }
+
+  /* ---------- composer ---------- */
+  #composer {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 10;
+    padding: 10px 12px calc(12px + env(safe-area-inset-bottom));
+    background: linear-gradient(to top, var(--bg) 70%, rgba(251, 247, 241, 0));
+  }
+  #composer .inner {
+    max-width: 680px; margin: 0 auto; display: flex; gap: 8px; align-items: flex-end;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 26px;
+    padding: 6px 6px 6px 18px; box-shadow: 0 4px 24px rgba(61, 52, 42, 0.10);
+  }
+  #composer textarea {
+    flex: 1; border: none; outline: none; resize: none; background: transparent;
+    font-family: inherit; font-size: 1.02em; line-height: 1.45; color: var(--ink);
+    padding: 8px 0; max-height: 120px;
+  }
+  #composer textarea::placeholder { color: var(--muted); }
+  #send {
+    flex: 0 0 auto; width: 42px; height: 42px; border: none; border-radius: 50%;
+    background: var(--accent); color: #fff; font-size: 1.25em; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.15s, transform 0.1s;
+  }
+  #send:hover { background: var(--accent-deep); }
+  #send:active { transform: scale(0.94); }
+  #send:disabled { opacity: 0.45; cursor: default; }
+  .hint { text-align: center; font-size: 0.78em; color: var(--muted); margin-top: 8px; }
+  .hint a { color: var(--muted); }
 </style>
 </head>
 <body>
 <header>
-  <h1>Talk to MOTHER</h1>
-  <p>Ask her a question. Thumbs up or down on every answer, and tell her why,
-     your ratings teach her for the next round.</p>
+  <div class="head-inner">
+    <div class="avatar">M</div>
+    <div class="who">
+      <div class="name">MOTHER</div>
+      <div class="status">
+        {% if model_ready %}<span class="dot"></span>Online &middot; still learning
+        {% if model_info and model_info.stage %} &middot; {{ model_info.stage }}{% endif %}
+        {% else %}<span class="dot off"></span>Not ready{% endif %}
+      </div>
+    </div>
+    <a href="/feedback">Feedback</a>
+  </div>
 </header>
+
 <div id="wrap">
   {% if not model_ready %}
-  <div class="banner error"><strong>MOTHER is not ready yet.</strong><br>
+  <div class="banner"><strong>MOTHER is not ready yet.</strong><br>
     {{ model_error or "The model did not load. Check the service logs." }}</div>
-  {% else %}
-  <div class="banner">MOTHER is running
-    {% if model_info and model_info.stage %}({{ model_info.stage }},
-    epoch {{ model_info.epoch }}){% endif %}.
-    She is still learning, she gets things wrong. Your thumbs up and down
-    plus the reason why are what teach her.</div>
   {% endif %}
+
+  <div id="empty">
+    <div class="avatar big">M</div>
+    <h1>Hi, I&rsquo;m MOTHER.</h1>
+    <p>Ask me anything. I&rsquo;m still learning, so I get things wrong
+       sometimes &mdash; tap thumbs up or down on my answers and tell me
+       why. That&rsquo;s how I get better.</p>
+    <div class="chips">
+      <button class="chip" type="button">Is a platypus a mammal?</button>
+      <button class="chip" type="button">What number comes after 769?</button>
+      <button class="chip" type="button">What is a saxophone?</button>
+      <button class="chip" type="button">Hello. How are you?</button>
+    </div>
+  </div>
+
   <div id="chat"></div>
 </div>
+
 <div id="composer">
   <div class="inner">
-    <input type="text" id="q" placeholder="Ask MOTHER something..." maxlength="500"
-           autocomplete="off" {% if not model_ready %}disabled{% endif %}>
-    <button id="send" {% if not model_ready %}disabled{% endif %}>Ask</button>
+    <textarea id="q" rows="1" placeholder="Ask MOTHER something..."
+      maxlength="500" {% if not model_ready %}disabled{% endif %}></textarea>
+    <button id="send" aria-label="Send" {% if not model_ready %}disabled{% endif %}>&uarr;</button>
   </div>
+  <div class="hint">Every answer can be rated &mdash; your ratings teach her.
+    <a href="/feedback/export">Export feedback</a></div>
 </div>
-<footer><a href="/feedback">See all feedback</a> &middot;
-  <a href="/feedback/export">Download feedback (JSON)</a></footer>
 
 <script>
 const chat = document.getElementById('chat');
+const empty = document.getElementById('empty');
 const qInput = document.getElementById('q');
 const sendBtn = document.getElementById('send');
 
 function esc(s) {
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-function addExchange(q, a, id, secs) {
-  const div = document.createElement('div');
-  div.className = 'msg';
-  div.innerHTML =
-    '<div class="q">You: ' + esc(q) + '</div>' +
-    '<div class="a">MOTHER: ' + esc(a) + '</div>' +
-    '<div class="meta">answered in ' + secs + 's</div>' +
-    '<div class="rate">' +
-      '<button class="up" title="Good answer">&#128077;</button>' +
-      '<button class="down" title="Wrong answer">&#128078;</button>' +
-      '<input type="text" placeholder="Why is it right or wrong?" maxlength="1000">' +
-      '<button class="sendwhy">Save rating</button>' +
-      '<div class="saved" style="display:none">Saved, thank you. This goes into her next training round.</div>' +
-    '</div>';
-  chat.appendChild(div);
-  const up = div.querySelector('.up'), down = div.querySelector('.down');
-  const why = div.querySelector('input[type=text]');
-  const save = div.querySelector('.sendwhy');
-  const saved = div.querySelector('.saved');
+function scrollBottom() {
+  window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+}
+
+function autoGrow() {
+  qInput.style.height = 'auto';
+  qInput.style.height = Math.min(qInput.scrollHeight, 120) + 'px';
+}
+
+function addUserBubble(q) {
+  const row = document.createElement('div');
+  row.className = 'row user';
+  const b = document.createElement('div');
+  b.className = 'bubble';
+  b.textContent = q;
+  row.appendChild(b);
+  chat.appendChild(row);
+  scrollBottom();
+}
+
+function addThinking() {
+  const row = document.createElement('div');
+  row.className = 'row mother';
+  row.innerHTML = '<div class="avatar">M</div>' +
+    '<div class="col"><div class="bubble"><span class="dots"><span></span><span></span><span></span></span></div></div>';
+  chat.appendChild(row);
+  scrollBottom();
+  return row;
+}
+
+function addError(text) {
+  const row = document.createElement('div');
+  row.className = 'row mother';
+  row.innerHTML = '<div class="avatar">M</div><div class="col"></div>';
+  const b = document.createElement('div');
+  b.className = 'error-bubble';
+  b.textContent = text;
+  row.querySelector('.col').appendChild(b);
+  chat.appendChild(row);
+  scrollBottom();
+}
+
+function saveFeedback(id, rating, reason) {
+  return fetch('/feedback', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ exchange_id: id, rating: rating, reason: reason || '' })
+  });
+}
+
+function addMotherAnswer(a, id, secs) {
+  const row = document.createElement('div');
+  row.className = 'row mother';
+  const col = document.createElement('div');
+  col.className = 'col';
+  const b = document.createElement('div');
+  b.className = 'bubble';
+  b.textContent = a;
+  col.appendChild(b);
+
+  const meta = document.createElement('div');
+  meta.className = 'meta';
+  meta.textContent = 'answered in ' + secs + 's';
+  col.appendChild(meta);
+
+  const rate = document.createElement('div');
+  rate.className = 'rate';
+  rate.innerHTML =
+    '<span class="ask">Was this right?</span>' +
+    '<button type="button" class="thumb up" title="Good answer">&#128077;</button>' +
+    '<button type="button" class="thumb down" title="Wrong answer">&#128078;</button>' +
+    '<input type="text" class="why" placeholder="Why? (optional)" maxlength="1000">' +
+    '<div class="saved">Saved, thank you. This goes into her next training round.</div>';
+  col.appendChild(rate);
+
+  const av = document.createElement('div');
+  av.className = 'avatar';
+  av.textContent = 'M';
+  row.appendChild(av);
+  row.appendChild(col);
+  chat.appendChild(row);
+
+  const up = rate.querySelector('.up'), down = rate.querySelector('.down');
+  const why = rate.querySelector('.why');
+  const saved = rate.querySelector('.saved');
   let rating = null;
-  up.onclick = () => { rating = 'up'; up.classList.add('on-up'); down.classList.remove('on-down'); };
-  down.onclick = () => { rating = 'down'; down.classList.add('on-down'); up.classList.remove('on-up'); };
-  save.onclick = async () => {
-    if (!rating) { save.textContent = 'Pick thumbs up or down first'; return; }
-    save.disabled = true;
-    const res = await fetch('/feedback', {
-      method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({exchange_id: id, rating: rating, reason: why.value})
-    });
-    if (res.ok) {
-      saved.style.display = 'block';
-      up.disabled = down.disabled = true; why.disabled = true;
-      save.style.display = 'none';
-    } else {
-      save.textContent = 'Could not save, try again';
-      save.disabled = false;
-    }
-  };
-  window.scrollTo(0, document.body.scrollHeight);
+
+  async function pick(r, btn, other, cls) {
+    rating = r;
+    btn.classList.add(cls);
+    other.classList.remove('on-up', 'on-down');
+    why.classList.add('show');
+    try {
+      const res = await saveFeedback(id, rating, why.value);
+      if (res.ok) saved.classList.add('show');
+    } catch (e) { /* stay quiet; the why save below can retry */ }
+    why.focus();
+  }
+  up.onclick = () => pick('up', up, down, 'on-up');
+  down.onclick = () => pick('down', down, up, 'on-down');
+
+  async function saveWhy() {
+    if (!rating) return;
+    const res = await saveFeedback(id, rating, why.value);
+    if (res.ok) saved.classList.add('show');
+  }
+  why.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); saveWhy(); why.blur(); }
+  });
+  why.addEventListener('change', saveWhy);
+
+  scrollBottom();
 }
 
-async function ask() {
-  const q = qInput.value.trim();
+async function ask(text) {
+  const q = (text !== undefined ? text : qInput.value).trim();
   if (!q) return;
+  empty.style.display = 'none';
   qInput.value = '';
+  qInput.style.height = 'auto';
   sendBtn.disabled = true;
-  const thinking = document.createElement('div');
-  thinking.className = 'msg thinking';
-  thinking.textContent = 'MOTHER is thinking...';
-  chat.appendChild(thinking);
+  addUserBubble(q);
+  const thinking = addThinking();
   try {
     const res = await fetch('/ask', {
-      method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({question: q})
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question: q })
     });
     const data = await res.json();
     thinking.remove();
     if (!res.ok) {
-      const err = document.createElement('div');
-      err.className = 'msg';
-      err.innerHTML = '<div class="a">' + esc(data.error || 'Something went wrong.') + '</div>';
-      chat.appendChild(err);
+      addError(data.error || 'Something went wrong.');
     } else {
-      addExchange(data.question, data.answer, data.exchange_id, data.seconds);
+      addMotherAnswer(data.answer, data.exchange_id, data.seconds);
     }
   } catch (e) {
     thinking.remove();
-    const err = document.createElement('div');
-    err.className = 'msg';
-    err.textContent = 'Could not reach MOTHER. Check your connection and try again.';
-    chat.appendChild(err);
+    addError('Could not reach MOTHER. Check your connection and try again.');
   }
   sendBtn.disabled = false;
   qInput.focus();
 }
 
-sendBtn.onclick = ask;
-qInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') ask(); });
+sendBtn.onclick = () => ask();
+qInput.addEventListener('input', autoGrow);
+qInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); ask(); }
+});
+document.querySelectorAll('.chip').forEach((c) => {
+  c.addEventListener('click', () => ask(c.textContent));
+});
 qInput.focus();
 </script>
 </body>

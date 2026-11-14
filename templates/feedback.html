@@ -5,27 +5,72 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>MOTHER feedback</title>
 <style>
+  :root {
+    --bg: #fbf7f1; --surface: #ffffff; --ink: #2b2620;
+    --ink-soft: #5d554a; --muted: #9a9083; --line: #efe6da;
+    --accent: #c2703e; --accent-deep: #a85a2e;
+    --up: #4c8a4f; --down: #c05a4d;
+    --shadow: 0 1px 2px rgba(61, 52, 42, 0.06), 0 4px 16px rgba(61, 52, 42, 0.05);
+  }
+  * { box-sizing: border-box; }
   body { font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-         margin: 0; background: #f4f1ea; color: #222; }
-  #wrap { max-width: 900px; margin: 0 auto; padding: 16px; }
-  h1 { font-size: 1.3em; }
-  table { width: 100%; border-collapse: collapse; background: #fff; font-size: 0.9em; }
-  th, td { border: 1px solid #ddd; padding: 8px; text-align: left; vertical-align: top; }
-  th { background: #2b2b3a; color: #fff; }
-  .up { color: #2e7d32; font-weight: 700; }
-  .down { color: #c62828; font-weight: 700; }
-  a { color: #2b2b3a; }
+         margin: 0; background: var(--bg); color: var(--ink);
+         -webkit-font-smoothing: antialiased; }
+  header { background: rgba(251, 247, 241, 0.92); border-bottom: 1px solid var(--line);
+           position: sticky; top: 0; }
+  .head-inner { max-width: 900px; margin: 0 auto; padding: 12px 16px;
+                display: flex; align-items: center; gap: 12px; }
+  .avatar { flex: 0 0 auto; width: 40px; height: 40px; border-radius: 50%;
+            background: linear-gradient(135deg, #e8a15c, #c2703e); color: #fff;
+            display: flex; align-items: center; justify-content: center;
+            font-family: Georgia, serif; font-size: 1.25em; font-weight: 700; }
+  .who { flex: 1; }
+  .who .name { font-family: Georgia, serif; font-size: 1.15em; font-weight: 700; }
+  .who .status { font-size: 0.82em; color: var(--muted); margin-top: 1px; }
+  #wrap { max-width: 900px; margin: 0 auto; padding: 20px 16px 40px; }
+  h1 { font-family: Georgia, serif; font-size: 1.4em; margin: 0 0 6px; }
+  p.lead { color: var(--ink-soft); margin: 0 0 16px; line-height: 1.5; }
+  table { width: 100%; border-collapse: collapse; background: var(--surface);
+          font-size: 0.9em; border-radius: 14px; overflow: hidden;
+          box-shadow: var(--shadow); }
+  th, td { border-bottom: 1px solid var(--line); padding: 10px 12px;
+           text-align: left; vertical-align: top; }
+  th { background: #3d342a; color: #fdfaf6; font-weight: 600; }
+  tr:last-child td { border-bottom: none; }
+  .up { color: var(--up); font-weight: 700; }
+  .down { color: var(--down); font-weight: 700; }
+  a { color: var(--accent-deep); }
+  @media (max-width: 640px) {
+    table, thead, tbody, th, td, tr { display: block; }
+    thead { display: none; }
+    tr { border-bottom: 1px solid var(--line); padding: 8px 0; }
+    td { border: none; padding: 4px 12px; }
+    td:first-child { font-weight: 700; color: var(--muted); }
+  }
 </style>
 </head>
 <body>
+<header>
+  <div class="head-inner">
+    <div class="avatar">M</div>
+    <div class="who">
+      <div class="name">MOTHER</div>
+      <div class="status">Feedback &middot; every rating teaches her</div>
+    </div>
+    <a href="/">Back to chat</a>
+  </div>
+</header>
 <div id="wrap">
-  <h1>MOTHER feedback</h1>
-  <p><a href="/">Back to chat</a> &middot;
-     <a href="/feedback/export">Download JSON</a> &middot;
+  <h1>Feedback</h1>
+  <p class="lead">Every question, her answer, and your rating with the reason
+     why. <a href="/feedback/export">Download JSON</a> &middot;
      <a href="/feedback/export?format=csv">Download CSV</a></p>
   {% if rows %}
   <table>
-    <tr><th>#</th><th>Question</th><th>MOTHER's answer</th><th>Rating</th><th>Why</th><th>When</th></tr>
+    <thead>
+      <tr><th>#</th><th>Question</th><th>MOTHER's answer</th><th>Rating</th><th>Why</th><th>When</th></tr>
+    </thead>
+    <tbody>
     {% for r in rows %}
     <tr>
       <td>{{ r.id }}</td>
@@ -36,6 +81,7 @@
       <td>{{ r.created_at }}</td>
     </tr>
     {% endfor %}
+    </tbody>
   </table>
   {% else %}
   <p>No conversations yet.</p>

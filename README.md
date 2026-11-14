@@ -6,6 +6,27 @@ answer gets a thumbs up / thumbs down button plus a "why" field — why
 it's right or why it's wrong. The ratings and reasons are stored and
 feed MOTHER's next training round.
 
+## The design
+
+The page is built to be the simplest, warmest chat page possible — not
+a clone of any AI app. One thread, like messaging a person: your
+messages in warm dark bubbles on the right, hers in white cards on the
+left with her "M" mark. The empty state greets you and offers tappable
+starter questions she can actually answer well (verified on the R14
+champion: platypus, 769, saxophone, hello), so you see what she can do
+instead of guessing. Rating is one tap: thumbs up or down saves
+immediately, and an optional "why" field appears under the answer.
+Typing indicator, auto-scroll, and a floating rounded composer round
+it out. Single self-contained page, no build step, no new dependencies.
+
+One honest limit: the conversation is in the UI only. Her training
+never included multi-turn dialogue, so every question is answered
+fresh with the verified single-turn call (prompt
+`Lesson: {question}\nExplanation:`, greedy, 48 tokens) — chat history
+is deliberately NOT fed into the prompt, because that would break the
+verified behavior. Teaching her real multi-turn conversation is a
+future training experiment, not a UI change.
+
 ## What MOTHER is
 
 MOTHER is a 5.3-million-parameter transformer (4 layers, 256 wide,
@@ -100,6 +121,8 @@ python app.py
   loaded once; answers are generated one at a time behind a lock. Fine
   for one user; it is not built for many simultaneous chatters.
 - **CPU only.** Answers take ~1–2 seconds on Render's free instance.
+- **Single-turn answers.** Each question is answered fresh; she does
+  not remember earlier messages in the thread (see "The design").
 
 ## Pending
 
