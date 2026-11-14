@@ -136,6 +136,10 @@
   }
   .rate .why:focus { border-color: var(--accent); }
   .rate .why.show { display: block; }
+  .rate .why-hint {
+    display: none; font-size: 0.8em; color: var(--muted); margin-top: 5px;
+  }
+  .rate .why-hint.show { display: block; }
   .rate .saved { display: none; color: var(--up); font-size: 0.82em; margin-top: 6px; }
   .rate .saved.show { display: block; }
 
@@ -201,8 +205,9 @@
     <div class="avatar big">M</div>
     <h1>Hi, I&rsquo;m MOTHER.</h1>
     <p>Ask me anything. I&rsquo;m still learning, so I get things wrong
-       sometimes &mdash; tap thumbs up or down on my answers and tell me
-       why. That&rsquo;s how I get better.</p>
+       sometimes &mdash; tap thumbs up when I get it right, and thumbs
+       down when I get it wrong, and tell me what I should have said.
+       That&rsquo;s how I get better.</p>
     <div class="chips">
       <button class="chip" type="button">Is a platypus a mammal?</button>
       <button class="chip" type="button">What number comes after 769?</button>
@@ -304,7 +309,8 @@ function addMotherAnswer(a, id, secs) {
     '<span class="ask">Was this right?</span>' +
     '<button type="button" class="thumb up" title="Good answer">&#128077;</button>' +
     '<button type="button" class="thumb down" title="Wrong answer">&#128078;</button>' +
-    '<input type="text" class="why" placeholder="Why? (optional)" maxlength="1000">' +
+    '<input type="text" class="why" placeholder="What should she have said?" maxlength="1000">' +
+    '<div class="why-hint">Tell her the right answer &mdash; that is what trains her.</div>' +
     '<div class="saved">Saved, thank you. This goes into her next training round.</div>';
   col.appendChild(rate);
 
@@ -317,6 +323,7 @@ function addMotherAnswer(a, id, secs) {
 
   const up = rate.querySelector('.up'), down = rate.querySelector('.down');
   const why = rate.querySelector('.why');
+  const whyHint = rate.querySelector('.why-hint');
   const saved = rate.querySelector('.saved');
   let rating = null;
 
@@ -324,12 +331,25 @@ function addMotherAnswer(a, id, secs) {
     rating = r;
     btn.classList.add(cls);
     other.classList.remove('on-up', 'on-down');
-    why.classList.add('show');
-    try {
-      const res = await saveFeedback(id, rating, why.value);
-      if (res.ok) saved.classList.add('show');
-    } catch (e) { /* stay quiet; the why save below can retry */ }
-    why.focus();
+    if (r === 'down') {
+      // A wrong answer needs the correction: show the why field.
+      why.classList.add('show');
+      whyHint.classList.add('show');
+      try {
+        const res = await saveFeedback(id, rating, why.value);
+        if (res.ok) saved.classList.add('show');
+      } catch (e) { /* stay quiet; the why save below can retry */ }
+      why.focus();
+    } else {
+      // A right answer needs no explanation: one tap, done.
+      why.classList.remove('show');
+      whyHint.classList.remove('show');
+      why.value = '';
+      try {
+        const res = await saveFeedback(id, rating, '');
+        if (res.ok) saved.classList.add('show');
+      } catch (e) { /* stay quiet */ }
+    }
   }
   up.onclick = () => pick('up', up, down, 'on-up');
   down.onclick = () => pick('down', down, up, 'on-down');

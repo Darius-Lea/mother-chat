@@ -2,9 +2,9 @@
 
 A simple web page where you can talk to MOTHER, a small language model
 trained from scratch, with no code. Type a question, she answers. Every
-answer gets a thumbs up / thumbs down button plus a "why" field — why
-it's right or why it's wrong. The ratings and reasons are stored and
-feed MOTHER's next training round.
+answer gets a thumbs up / thumbs down: thumbs up is one tap, done,
+and thumbs down asks what she should have said. The ratings and
+reasons are stored and feed MOTHER's next training round.
 
 ## The design
 
@@ -14,8 +14,9 @@ messages in warm dark bubbles on the right, hers in white cards on the
 left with her "M" mark. The empty state greets you and offers tappable
 starter questions she can actually answer well (verified on the R14
 champion: platypus, 769, saxophone, hello), so you see what she can do
-instead of guessing. Rating is one tap: thumbs up or down saves
-immediately, and an optional "why" field appears under the answer.
+instead of guessing. Rating is one tap: thumbs up saves immediately,
+done. Thumbs down opens a "why" field asking what she should have
+said — that correction is what trains her.
 Typing indicator, auto-scroll, and a floating rounded composer round
 it out. Single self-contained page, no build step, no new dependencies.
 
@@ -63,9 +64,17 @@ Starter plan keeps it awake.
 ## How the feedback works
 
 - Every question + answer is stored in SQLite (`feedback.db`).
-- Thumbs up/down + the "why" reason are saved against that answer.
+- Thumbs up saves with one tap, no text. Thumbs down opens a "why"
+  field asking what she should have said, and that reason is saved
+  against the answer.
 - **Export:** `/feedback/export` downloads everything as JSON
   (`?format=csv` for CSV). `/feedback` shows a simple table in the browser.
+- **Training:** the ratings become lessons for the next training round.
+  See `training/README.md` for the pipeline: thumbs up turns her answer
+  into a positive lesson, thumbs down + why turns your reason into the
+  correction, and the lessons live in `training/feedback-lessons.jsonl`.
+  Muse does the export-then-commit step; the app itself cannot push to
+  GitHub (it has no credentials on Render).
 - **Important:** on Render's free tier the disk is ephemeral — the
   feedback database is wiped on every redeploy or restart. Export the
   feedback regularly (at least before each redeploy). A persistent disk
@@ -149,3 +158,4 @@ real model answering).
 | `requirements.txt` | CPU-only torch + sentencepiece + flask + gunicorn |
 | `render.yaml` | Render blueprint (free web service) |
 | `models/` | Weights chunks + tokenizer + SHA file (chunks/tokenizer uploaded separately; see `models/README.md`) |
+| `training/` | Feedback-to-training pipeline: `feedback-lessons.jsonl` (lessons built from chat ratings) + `training/README.md` (the pipeline, in plain words) |
