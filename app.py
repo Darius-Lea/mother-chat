@@ -6,7 +6,7 @@ the feedback is stored in SQLite and exported for the next
 training round.
 
 Configuration (environment variables):
-  MOTHER_MODEL_PATH     weights file, default models/stageR16_champion.pt
+  MOTHER_MODEL_PATH     weights file, default models/stageR18_champion.pt
   MOTHER_TOKENIZER_PATH SentencePiece .model file, default models/mother_v006.model
   MOTHER_MAX_TOKENS     max new tokens per answer, default 48
   FEEDBACK_DB           SQLite file, default feedback.db (in the app dir)
@@ -31,7 +31,7 @@ from mother_model import BOS, EOS, PAD, generate, load_champion
 
 BASE_DIR = Path(__file__).resolve().parent
 MODEL_PATH = Path(os.environ.get(
-    "MOTHER_MODEL_PATH", BASE_DIR / "models" / "stageR17_champion.pt"))
+    "MOTHER_MODEL_PATH", BASE_DIR / "models" / "stageR18_champion.pt"))
 TOKENIZER_PATH = Path(os.environ.get(
     "MOTHER_TOKENIZER_PATH", BASE_DIR / "models" / "mother_v006.model"))
 MAX_TOKENS = int(os.environ.get("MOTHER_MAX_TOKENS", "48"))
