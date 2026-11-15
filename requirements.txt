@@ -1,5 +1,4 @@
---extra-index-url https://download.pytorch.org/whl/cpu
-torch==2.5.1
+numpy==1.26.4
 sentencepiece==0.2.0
 flask==3.0.3
 gunicorn==23.0.0

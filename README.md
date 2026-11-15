@@ -12,8 +12,8 @@ The page is built to be the simplest, warmest chat page possible — not
 a clone of any AI app. One thread, like messaging a person: your
 messages in warm dark bubbles on the right, hers in white cards on the
 left with her "M" mark. The empty state greets you and offers tappable
-starter questions she can actually answer well (verified on the R14
-champion: platypus, 769, saxophone, hello), so you see what she can do
+starter questions she can actually answer well (verified on the S11
+champion: 312 + 4, after 549, saxophone, falcon), so you see what she can do
 instead of guessing. Rating is one tap: thumbs up saves immediately,
 done. Thumbs down opens a "why" field asking what she should have
 said — that correction is what trains her.
@@ -30,20 +30,21 @@ future training experiment, not a UI change.
 
 ## What MOTHER is
 
-MOTHER is a 5.3-million-parameter transformer (4 layers, 256 wide,
+MOTHER is a 29.6-million-parameter transformer (8 layers, 512 wide,
 8,000-word vocabulary), trained in stages on Kaggle. This app runs the
-R14 champion, the best version so far. Talking to her does NOT train
+S11 champion, the best version so far. Inference is pure numpy, no
+torch, so the app is light enough for Render's free tier. Talking to her does NOT train
 her — chatting never changes her weights. The feedback you leave here
 becomes lessons and corrections in the next training round.
 
 ## Deploy on Render
 
 1. Add the model files to `models/` first (see `models/README.md`):
-   the R14 weights as three chunks (`stageR14_champion.pt.part00/01/02`,
-   each under 25 MB) and the tokenizer `mother_v006.model` (single file).
-   Upload them through the GitHub web UI (repo page → Add file → Upload
-   files, into `models/`). The app will not answer questions until all
-   four files are in the repo.
+   the S11 weights as six chunks (`mother_v008_s11.npz.part00` through
+   `.part05`, each under 25 MB) and the tokenizer `mother_v006.model`
+   (single file). Upload them through the GitHub web UI (repo page →
+   Add file → Upload files, into `models/`). The app will not answer
+   questions until all seven files are in the repo.
 2. In the Render dashboard: **New + → Web Service → Build and deploy
    from a Git repository** (or **New + → Blueprint**). Connect this repo
    (`Darius-Lea/mother-chat`), branch `main`.
@@ -51,9 +52,9 @@ becomes lessons and corrections in the next training round.
    build reassembles the weights chunks, verifies their SHA-256, then
    `pip install -r requirements.txt`; start
    `gunicorn --workers 1 --threads 4 --timeout 120 --bind 0.0.0.0:$PORT app:app`.
-4. Deploy. The first build takes a few minutes (CPU torch is a large
-   download). The service gets a URL like
-   `https://mother-chat.onrender.com`.
+4. Deploy. The first build takes a few minutes (numpy +
+   sentencepiece are small downloads; there is no torch any more). The
+   service gets a URL like `https://mother-chat.onrender.com`.
 5. Open the URL and ask her something. If the page says "MOTHER is not
    ready", it names the missing file — add it and redeploy.
 
@@ -87,36 +88,38 @@ see `models/README.md` for the full swap procedure (split the new
 weights into chunks, write the new `.sha256` file, update
 `MOTHER_MODEL_PATH` and the build command in `render.yaml`).
 
-The model code (`mother_model.py`) never changes — every champion shares
-the same architecture; only the weights file changes. The loader checks
-the parameter count (5,338,624) on startup and refuses to run a file
-with the wrong shape.
+The model code (`mother_model.py`) only changes when the architecture
+changes — every V008 champion shares the same shape, so a newer V008
+round only needs a new weights file (plus its stage/epoch/val-loss
+constants). The loader checks the parameter count (29,578,240) on
+startup and refuses to run a file with the wrong shape.
 
 ## How the weights file is stored (and why not Git LFS)
 
-The 64 MB weights file is stored in this repo as three chunks
-(`stageR14_champion.pt.part00/01/02`, each under 25 MB), reassembled
-at build time by the command in `render.yaml` (which also verifies
-the SHA-256). The chunks exist because GitHub's web upload caps at
-25 MB per file and the Muse GitHub connection cannot push binary
-files; see `models/README.md` for the chunk sizes and the swap
-procedure. We deliberately do NOT use Git LFS:
+The 118 MB weights file is stored in this repo as six chunks
+(`mother_v008_s11.npz.part00` through `.part05`, each under 25 MB),
+reassembled at build time by the command in `render.yaml` (which also
+verifies the SHA-256). The chunks exist because the file is over
+GitHub's 100 MB per-file limit, GitHub's web upload caps at 25 MB per
+file, and the Muse GitHub connection cannot push binary files; see
+`models/README.md` for the chunk sizes and the swap procedure. We
+deliberately do NOT use Git LFS:
 
 - Render does fetch LFS files during its git clone, so LFS would work.
 - But GitHub's free LFS quota is 1 GB storage / 1 GB bandwidth per
   month, and every Render deploy re-downloads the file, eating that
-  bandwidth. A 64 MB file allows only ~15 deploys a month before LFS
+  bandwidth. A 118 MB file allows only ~8 deploys a month before LFS
   bandwidth runs out and deploys start failing.
 - Direct chunks have no such quota. The cost is repo history bloat
   (each champion version stays in git history forever); that is
-  acceptable while champions are 64 MB and replaced one at a time.
+  acceptable while champions are ~118 MB and replaced one at a time.
 
 ## Run locally
 
 ```sh
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-# put stageR14_champion.pt and mother_v006.model in models/
+# put mother_v008_s11.npz (reassemble the six chunks first) and mother_v006.model in models/
 python app.py
 # open http://127.0.0.1:5000
 ```
@@ -129,33 +132,29 @@ python app.py
 - **One worker.** The app runs a single gunicorn worker so the model is
   loaded once; answers are generated one at a time behind a lock. Fine
   for one user; it is not built for many simultaneous chatters.
-- **CPU only.** Answers take ~1–2 seconds on Render's free instance.
+- **CPU only.** Answers take a few seconds on Render's free instance.
 - **Single-turn answers.** Each question is answered fresh; she does
   not remember earlier messages in the thread (see "The design").
 
 ## Pending
 
-- [ ] Upload the weights chunks + tokenizer to `models/` via the
-      GitHub web UI (3 chunks + `mother_v006.model`; see
-      `models/README.md`).
-- [ ] Create the Render service from this repo (dashboard step).
 - [ ] Persistent feedback storage (disk or Postgres) + simple auth.
 
-Live-tokenizer test done 2026-11-14: the app with the real R14
-weights + real `mother_v006.model` reproduces the recorded R14
-disk-verification generations exactly (8/8 questions, including the
-known failures — 7+5→13 and hut→HECK — which is the proof it is the
-real model answering).
+Live-tokenizer test done 2026-11-15: the app with the real S11
+weights + real `mother_v006.model` reproduces the recorded S11
+disk-verification generations exactly (3/3 questions, including the
+known failure — 7+5→13 — which is the proof it is the real model
+answering).
 
 ## Files
 
 | File | What it is |
 | --- | --- |
 | `app.py` | Flask app: chat page, /ask, feedback, export |
-| `mother_model.py` | MotherV0061 architecture + greedy generation (copied from the MOTHER notebook) |
+| `mother_model.py` | MotherV008 numpy engine + greedy generation (pure numpy, no torch) |
 | `templates/index.html` | The chat page (mobile-friendly) |
 | `templates/feedback.html` | Simple feedback table |
-| `requirements.txt` | CPU-only torch + sentencepiece + flask + gunicorn |
+| `requirements.txt` | numpy + sentencepiece + flask + gunicorn |
 | `render.yaml` | Render blueprint (free web service) |
 | `models/` | Weights chunks + tokenizer + SHA file (chunks/tokenizer uploaded separately; see `models/README.md`) |
 | `training/` | Feedback-to-training pipeline: `feedback-lessons.jsonl` (lessons built from chat ratings) + `training/README.md` (the pipeline, in plain words) |

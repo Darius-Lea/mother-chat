@@ -1,12 +1,12 @@
 """MOTHER chat web app.
 
-A simple page where Johnathan can talk to MOTHER with no code.
+A simple page where Darius can talk to MOTHER with no code.
 Each answer gets a thumbs up / thumbs down plus a "why" field;
 the feedback is stored in SQLite and exported for the next
 training round.
 
 Configuration (environment variables):
-  MOTHER_MODEL_PATH     weights file, default models/stageR18_champion.pt
+  MOTHER_MODEL_PATH     weights file, default models/mother_v008_s11.npz
   MOTHER_TOKENIZER_PATH SentencePiece .model file, default models/mother_v006.model
   MOTHER_MAX_TOKENS     max new tokens per answer, default 48
   FEEDBACK_DB           SQLite file, default feedback.db (in the app dir)
@@ -31,7 +31,7 @@ from mother_model import BOS, EOS, PAD, generate, load_champion
 
 BASE_DIR = Path(__file__).resolve().parent
 MODEL_PATH = Path(os.environ.get(
-    "MOTHER_MODEL_PATH", BASE_DIR / "models" / "stageR18_champion.pt"))
+    "MOTHER_MODEL_PATH", BASE_DIR / "models" / "mother_v008_s11.npz"))
 TOKENIZER_PATH = Path(os.environ.get(
     "MOTHER_TOKENIZER_PATH", BASE_DIR / "models" / "mother_v006.model"))
 MAX_TOKENS = int(os.environ.get("MOTHER_MAX_TOKENS", "48"))
