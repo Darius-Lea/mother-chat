@@ -207,7 +207,8 @@
     <p>Ask me anything. I&rsquo;m still learning, so I get things wrong
        sometimes &mdash; tap thumbs up when I get it right, and thumbs
        down when I get it wrong, and tell me what I should have said.
-       That&rsquo;s how I get better.</p>
+       That&rsquo;s how I get better. If your question needs current
+       information, I can look it up on the web first.</p>
     <div class="chips">
       <button class="chip" type="button">What is 312 + 4?</button>
       <button class="chip" type="button">What number comes after 549?</button>
@@ -288,7 +289,7 @@ function saveFeedback(id, rating, reason) {
   });
 }
 
-function addMotherAnswer(a, id, secs) {
+function addMotherAnswer(a, id, secs, searched) {
   const row = document.createElement('div');
   row.className = 'row mother';
   const col = document.createElement('div');
@@ -300,7 +301,8 @@ function addMotherAnswer(a, id, secs) {
 
   const meta = document.createElement('div');
   meta.className = 'meta';
-  meta.textContent = 'answered in ' + secs + 's';
+  meta.textContent = 'answered in ' + secs + 's' +
+    (searched ? ' · used web search' : '');
   col.appendChild(meta);
 
   const rate = document.createElement('div');
@@ -386,7 +388,7 @@ async function ask(text) {
     if (!res.ok) {
       addError(data.error || 'Something went wrong.');
     } else {
-      addMotherAnswer(data.answer, data.exchange_id, data.seconds);
+      addMotherAnswer(data.answer, data.exchange_id, data.seconds, data.searched);
     }
   } catch (e) {
     thinking.remove();

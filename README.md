@@ -81,6 +81,42 @@ Starter plan keeps it awake.
   feedback regularly (at least before each redeploy). A persistent disk
   or a Render Postgres database is the follow-up fix; see "Known limits".
 
+## Internet search
+
+When a question needs current or external facts (news, prices, what
+happened today, a CVE), the app searches the web and feeds the top
+results into MOTHER's prompt as context, so she answers grounded in
+them. The chat page shows "used web search" under answers that used
+it.
+
+- **No API key.** `search.py` tries three HTML search backends in
+  order (DuckDuckGo HTML, Bing HTML, DuckDuckGo Lite) and takes the
+  first one that returns results. Standard library only, no new
+  dependencies.
+- **Silent failure.** If search fails, times out, or there is no
+  internet, she just answers without it. The user never sees a
+  search error.
+- **Trigger.** A question searches only when it looks like it needs
+  current facts: words like today, latest, news, price, weather, a
+  year (2024-2026), a CVE id, or an explicit "search the web" /
+  "look up". Ordinary questions (math, what things are, chat) never
+  search.
+- **Config:** `MOTHER_SEARCH_ENABLED` (default 1, set 0 to disable),
+  `MOTHER_SEARCH_TIMEOUT` (seconds per backend, default 4),
+  `MOTHER_SEARCH_MAX_RESULTS` (default 3). `/health` reports
+  `search_enabled`.
+- **Tests:** `python tests/test_search.py` (offline, 53 checks: the
+  parsers, the trigger logic, the fallback chain, and the full
+  `/ask` flow with a stubbed model). `python tests/test_search_live.py`
+  hits the real backends and needs internet.
+
+One honest limit: MOTHER was never trained with a Context line in
+her prompt, so search grounding is best-effort until a training
+round teaches her to use context. The results are in her window and
+she conditions on them, but how faithfully she follows them is
+measured, not assumed. The feedback ratings on searched answers are
+the measurement.
+
 ## Swapping in a new champion
 
 When a new training round produces a better champion (e.g. R15),
@@ -152,6 +188,8 @@ answering).
 | --- | --- |
 | `app.py` | Flask app: chat page, /ask, feedback, export |
 | `mother_model.py` | MotherV008 numpy engine + greedy generation (pure numpy, no torch) |
+| `search.py` | Internet search (no API key) + prompt-context builder |
+| `tests/` | `test_search.py` (offline suite) + `test_search_live.py` (real backends) + fixtures |
 | `templates/index.html` | The chat page (mobile-friendly) |
 | `templates/feedback.html` | Simple feedback table |
 | `requirements.txt` | numpy + sentencepiece + flask + gunicorn |

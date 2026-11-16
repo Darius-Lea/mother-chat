@@ -10,6 +10,14 @@ Configuration (environment variables):
   MOTHER_TOKENIZER_PATH SentencePiece .model file, default models/mother_v006.model
   MOTHER_MAX_TOKENS     max new tokens per answer, default 48
   FEEDBACK_DB           SQLite file, default feedback.db (in the app dir)
+  MOTHER_SEARCH_ENABLED web search on/off, default 1 (set 0 to disable)
+  MOTHER_SEARCH_TIMEOUT seconds per search backend, default 4
+  MOTHER_SEARCH_MAX_RESULTS search results fed to the prompt, default 3
+
+Internet search (search.py): when a question needs current or
+external facts, the app searches the web (no API key) and feeds the
+top results into MOTHER's prompt as context. If search fails, or
+there is no internet, she just answers without it, no error shown.
 
 The model is loaded ONCE at startup. If the weights or tokenizer
 file is missing, the app still starts (so the feedback pages keep
@@ -28,6 +36,12 @@ import sentencepiece as spm
 from flask import Flask, g, jsonify, render_template, request, Response
 
 from mother_model import BOS, EOS, PAD, generate, load_champion
+from search import (
+    build_context,
+    build_grounded_question,
+    needs_search,
+    search_web,
+)
 
 BASE_DIR = Path(__file__).resolve().parent
 MODEL_PATH = Path(os.environ.get(
@@ -36,6 +50,17 @@ TOKENIZER_PATH = Path(os.environ.get(
     "MOTHER_TOKENIZER_PATH", BASE_DIR / "models" / "mother_v006.model"))
 MAX_TOKENS = int(os.environ.get("MOTHER_MAX_TOKENS", "48"))
 DB_PATH = Path(os.environ.get("FEEDBACK_DB", BASE_DIR / "feedback.db"))
+SEARCH_ENABLED = os.environ.get(
+    "MOTHER_SEARCH_ENABLED", "1").strip().lower() not in (
+        "0", "false", "no", "off", "")
+try:
+    SEARCH_TIMEOUT = float(os.environ.get("MOTHER_SEARCH_TIMEOUT", "4"))
+except ValueError:
+    SEARCH_TIMEOUT = 4.0
+try:
+    SEARCH_MAX_RESULTS = int(os.environ.get("MOTHER_SEARCH_MAX_RESULTS", "3"))
+except ValueError:
+    SEARCH_MAX_RESULTS = 3
 
 app = Flask(__name__)
 
@@ -143,6 +168,7 @@ def health():
         "model_ready": _model is not None,
         "model_error": _model_error,
         "model": _model_info,
+        "search_enabled": SEARCH_ENABLED,
     })
 
 
@@ -157,10 +183,28 @@ def ask():
     err = load_model()
     if err is not None:
         return jsonify({"error": err}), 503
+    # Web search, before the generation lock: a slow network call must
+    # not block other requests. Any failure here just means answering
+    # without context; the user never sees a search error.
+    searched = False
+    ask_text = question
+    if SEARCH_ENABLED and needs_search(question):
+        try:
+            results = search_web(
+                question,
+                max_results=SEARCH_MAX_RESULTS,
+                timeout=SEARCH_TIMEOUT,
+            )
+        except Exception:  # noqa: BLE001 - search must never break /ask
+            results = []
+        context = build_context(results)
+        if context:
+            ask_text = build_grounded_question(question, context)
+            searched = True
     with _gen_lock:
         t0 = time.time()
         try:
-            answer = generate(_model, _sp, question, max_new_tokens=MAX_TOKENS)
+            answer = generate(_model, _sp, ask_text, max_new_tokens=MAX_TOKENS)
         except Exception as exc:  # noqa: BLE001 - generation must never 500 as HTML
             return jsonify({
                 "error": f"MOTHER hit a problem answering that: {exc}. "
@@ -178,6 +222,7 @@ def ask():
         "question": question,
         "answer": answer,
         "seconds": elapsed,
+        "searched": searched,
     })
 
 
