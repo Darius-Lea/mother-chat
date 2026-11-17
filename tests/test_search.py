@@ -272,8 +272,11 @@ check("stored question is the original (no context leaked)",
       data.get("question") == "What is the news today?")
 ex_id = data.get("exchange_id")
 
+# Memory is session-scoped: a fresh client is a new conversation
+# with no history, so the search checks stay isolated from memory.
 GENERATE_CALLS.clear()
-r = client.post("/ask", json={"question": "What is a saxophone?"})
+fresh = appmod.app.test_client()
+r = fresh.post("/ask", json={"question": "What is a saxophone?"})
 data2 = r.get_json()
 check("plain question -> searched=false",
       r.status_code == 200 and data2.get("searched") is False)
@@ -287,7 +290,8 @@ def broken_search(question, max_results=3, timeout=4):
 
 appmod.search_web = broken_search
 GENERATE_CALLS.clear()
-r = client.post("/ask", json={"question": "What is the news today?"})
+fresh2 = appmod.app.test_client()
+r = fresh2.post("/ask", json={"question": "What is the news today?"})
 data3 = r.get_json()
 check("search raising -> still 200, searched=false",
       r.status_code == 200 and data3.get("searched") is False

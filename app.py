@@ -13,11 +13,20 @@ Configuration (environment variables):
   MOTHER_SEARCH_ENABLED web search on/off, default 1 (set 0 to disable)
   MOTHER_SEARCH_TIMEOUT seconds per search backend, default 4
   MOTHER_SEARCH_MAX_RESULTS search results fed to the prompt, default 3
+  MOTHER_MEMORY_ENABLED conversation memory on/off, default 1 (set 0 to disable)
+  MOTHER_SESSION_KEY    secret key for the session cookie, default a dev
+                        key (set a real one on Render)
 
 Internet search (search.py): when a question needs current or
 external facts, the app searches the web (no API key) and feeds the
 top results into MOTHER's prompt as context. If search fails, or
 there is no internet, she just answers without it, no error shown.
+
+Conversation memory (memory.py): each browser gets a random session
+id in a signed cookie, and its recent exchanges are folded into the
+prompt as a Conversation block, so she can answer follow-ups. If
+memory fails for any reason, she just answers without it. The
+question stored in the database stays the original question.
 
 The model is loaded ONCE at startup. If the weights or tokenizer
 file is missing, the app still starts (so the feedback pages keep
@@ -33,15 +42,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import sentencepiece as spm
-from flask import Flask, g, jsonify, render_template, request, Response
+from flask import Flask, g, jsonify, render_template, request, Response, session
 
+from memory import MAX_EXCHANGES, build_memory_question, cap_history, new_session_id
 from mother_model import BOS, EOS, PAD, generate, load_champion
-from search import (
-    build_context,
-    build_grounded_question,
-    needs_search,
-    search_web,
-)
+from search import build_context, needs_search, search_web
 
 BASE_DIR = Path(__file__).resolve().parent
 MODEL_PATH = Path(os.environ.get(
@@ -61,8 +66,17 @@ try:
     SEARCH_MAX_RESULTS = int(os.environ.get("MOTHER_SEARCH_MAX_RESULTS", "3"))
 except ValueError:
     SEARCH_MAX_RESULTS = 3
+MEMORY_ENABLED = os.environ.get(
+    "MOTHER_MEMORY_ENABLED", "1").strip().lower() not in (
+        "0", "false", "no", "off", "")
 
 app = Flask(__name__)
+
+# The session cookie carries only a random session id (the key to
+# this browser's conversation history in the feedback database).
+# Set MOTHER_SESSION_KEY on Render; the default is for local dev.
+app.secret_key = os.environ.get(
+    "MOTHER_SESSION_KEY", "mother-dev-key-change-me")
 
 # The model + tokenizer, loaded once. A lock guards generation so
 # concurrent requests are answered one at a time (the model is
@@ -132,9 +146,16 @@ def get_db():
                    rating TEXT,
                    reason TEXT,
                    created_at TEXT NOT NULL,
-                   rated_at TEXT
+                   rated_at TEXT,
+                   session_id TEXT
                )"""
         )
+        # Databases created before memory existed lack the column;
+        # add it in place so old feedback keeps working.
+        cols = [r[1] for r in g.db.execute("PRAGMA table_info(exchanges)")]
+        if "session_id" not in cols:
+            g.db.execute(
+                "ALTER TABLE exchanges ADD COLUMN session_id TEXT")
         g.db.commit()
     return g.db
 
@@ -148,6 +169,37 @@ def close_db(exc=None):
 
 def _now():
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
+# ------------------------------------------------------------- memory --
+def _get_session_id():
+    """This browser's conversation id, from the signed session cookie.
+
+    Created on first use; the cookie carries only the id, never the
+    conversation itself.
+    """
+    sid = session.get("sid")
+    if not sid:
+        sid = new_session_id()
+        session["sid"] = sid
+    return sid
+
+
+def _load_history(sid):
+    """Last exchanges for this session, oldest-first, capped for the prompt.
+
+    Returns [] when there is nothing to remember. Raises on a
+    database failure; the caller treats that as no memory.
+    """
+    db = get_db()
+    rows = db.execute(
+        "SELECT question, answer FROM exchanges "
+        "WHERE session_id = ? ORDER BY id DESC LIMIT ?",
+        (sid, MAX_EXCHANGES),
+    ).fetchall()
+    history = [(r["question"], r["answer"]) for r in rows]
+    history.reverse()
+    return cap_history(history)
 
 
 # -------------------------------------------------------------- routes --
@@ -169,6 +221,7 @@ def health():
         "model_error": _model_error,
         "model": _model_info,
         "search_enabled": SEARCH_ENABLED,
+        "memory_enabled": MEMORY_ENABLED,
     })
 
 
@@ -183,11 +236,25 @@ def ask():
     err = load_model()
     if err is not None:
         return jsonify({"error": err}), 503
+    # Conversation memory, before the generation lock: load this
+    # session's recent exchanges so she can answer follow-ups. Any
+    # failure here just means answering without memory; the user
+    # never sees a memory error. The session id is kept even when
+    # the history load fails, so this exchange is still stored
+    # under it and later questions can recall it.
+    sid = None
+    history = []
+    if MEMORY_ENABLED:
+        try:
+            sid = _get_session_id()
+            history = _load_history(sid)
+        except Exception:  # noqa: BLE001 - memory must never break /ask
+            history = []
     # Web search, before the generation lock: a slow network call must
     # not block other requests. Any failure here just means answering
     # without context; the user never sees a search error.
     searched = False
-    ask_text = question
+    context = ""
     if SEARCH_ENABLED and needs_search(question):
         try:
             results = search_web(
@@ -199,8 +266,12 @@ def ask():
             results = []
         context = build_context(results)
         if context:
-            ask_text = build_grounded_question(question, context)
             searched = True
+    # Assemble the prompt: history first, then the current question,
+    # then the search context. With no history and no context this
+    # is just the question, exactly as before.
+    ask_text = build_memory_question(question, history, context)
+    remembered = len(history)
     with _gen_lock:
         t0 = time.time()
         try:
@@ -212,9 +283,9 @@ def ask():
         elapsed = round(time.time() - t0, 2)
     db = get_db()
     cur = db.execute(
-        "INSERT INTO exchanges (question, answer, created_at) "
-        "VALUES (?, ?, ?)",
-        (question, answer, _now()),
+        "INSERT INTO exchanges (question, answer, created_at, session_id) "
+        "VALUES (?, ?, ?, ?)",
+        (question, answer, _now(), sid),
     )
     db.commit()
     return jsonify({
@@ -223,6 +294,7 @@ def ask():
         "answer": answer,
         "seconds": elapsed,
         "searched": searched,
+        "remembered": remembered,
     })
 
 

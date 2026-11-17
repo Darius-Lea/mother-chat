@@ -289,7 +289,7 @@ function saveFeedback(id, rating, reason) {
   });
 }
 
-function addMotherAnswer(a, id, secs, searched) {
+function addMotherAnswer(a, id, secs, searched, remembered) {
   const row = document.createElement('div');
   row.className = 'row mother';
   const col = document.createElement('div');
@@ -302,7 +302,8 @@ function addMotherAnswer(a, id, secs, searched) {
   const meta = document.createElement('div');
   meta.className = 'meta';
   meta.textContent = 'answered in ' + secs + 's' +
-    (searched ? ' · used web search' : '');
+    (searched ? ' · used web search' : '') +
+    (remembered ? ' · remembers ' + remembered : '');
   col.appendChild(meta);
 
   const rate = document.createElement('div');
@@ -388,7 +389,7 @@ async function ask(text) {
     if (!res.ok) {
       addError(data.error || 'Something went wrong.');
     } else {
-      addMotherAnswer(data.answer, data.exchange_id, data.seconds, data.searched);
+      addMotherAnswer(data.answer, data.exchange_id, data.seconds, data.searched, data.remembered);
     }
   } catch (e) {
     thinking.remove();

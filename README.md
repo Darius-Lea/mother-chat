@@ -20,13 +20,15 @@ said — that correction is what trains her.
 Typing indicator, auto-scroll, and a floating rounded composer round
 it out. Single self-contained page, no build step, no new dependencies.
 
-One honest limit: the conversation is in the UI only. Her training
-never included multi-turn dialogue, so every question is answered
-fresh with the verified single-turn call (prompt
-`Lesson: {question}\nExplanation:`, greedy, 48 tokens) — chat history
-is deliberately NOT fed into the prompt, because that would break the
-verified behavior. Teaching her real multi-turn conversation is a
-future training experiment, not a UI change.
+One honest limit: her training never included multi-turn dialogue,
+so the verified single-turn call (prompt
+`Lesson: {question}\nExplanation:`, greedy, 48 tokens) is still the
+base behavior. The page now also remembers the conversation (see
+"Conversation memory" below): the last few exchanges are folded into
+the prompt as a Conversation block, so she can answer follow-ups.
+That memory is best-effort until a training round teaches her the
+Conversation shape — the shape is the contract the lessons are
+written to.
 
 ## What MOTHER is
 
@@ -117,6 +119,49 @@ she conditions on them, but how faithfully she follows them is
 measured, not assumed. The feedback ratings on searched answers are
 the measurement.
 
+## Conversation memory
+
+MOTHER remembers what was said earlier in the same browser session,
+so she can answer follow-up questions ("and what about the other
+one?") instead of treating every question as the first one.
+
+- **How it works.** Each browser gets a random session id, carried
+  in Flask's signed session cookie (the cookie holds only the id,
+  never the conversation). Every exchange is stored in the feedback
+  database with its session id, and before answering, the app loads
+  the last few exchanges for this session and folds them into the
+  prompt as a Conversation block: `Conversation:` followed by
+  `User:` / `MOTHER:` turns, ending with the current question. When
+  a web search also applies, the `Context:` line goes after the
+  current question (history first, then the question, then the
+  search context). With no history, the prompt is exactly as it was
+  before memory existed.
+- **Caps.** At most 4 exchanges and ~800 characters of history, so
+  the prompt stays inside her 512-token window.
+- **What gets stored.** The question saved in the database stays the
+  original question. History and search context never leak into
+  stored data or the feedback export, so they never become training
+  data by accident.
+- **Visible.** An answer that used memory shows "remembers N" under
+  it, next to the time and the web-search note.
+- **Config:** `MOTHER_MEMORY_ENABLED` (default 1, set 0 to disable),
+  `MOTHER_SESSION_KEY` (secret key for the session cookie; set a
+  real one on Render — the default is for local development only).
+  `/health` reports `memory_enabled`, and `/ask` reports
+  `remembered` (how many previous exchanges were included).
+- **Tests:** `python tests/test_memory.py` (offline, 40 checks: the
+  prompt shape, the caps, the full `/ask` flow with a stubbed model,
+  search + memory ordering, memory disabled, history failure, and
+  the database migration).
+
+Two honest limits: she was never trained on multi-turn dialogue, so
+memory is best-effort until a training round teaches her the
+Conversation shape. And memory lives in the same SQLite database as
+the feedback, which is ephemeral on Render's free tier — a redeploy
+or restart wipes it, so she forgets everything on each deploy.
+Durable storage (a persistent disk or Postgres) is a future
+decision; it would fix feedback and memory together.
+
 ## Swapping in a new champion
 
 When a new training round produces a better champion (e.g. R15),
@@ -169,12 +214,15 @@ python app.py
   loaded once; answers are generated one at a time behind a lock. Fine
   for one user; it is not built for many simultaneous chatters.
 - **CPU only.** Answers take a few seconds on Render's free instance.
-- **Single-turn answers.** Each question is answered fresh; she does
-  not remember earlier messages in the thread (see "The design").
+- **Memory is best-effort and ephemeral.** She remembers the last
+  few exchanges in a session, but she was never trained on
+  multi-turn dialogue, and the memory is wiped on every redeploy or
+  restart (see "Conversation memory").
 
 ## Pending
 
-- [ ] Persistent feedback storage (disk or Postgres) + simple auth.
+- [ ] Persistent storage (disk or Postgres) for feedback + memory,
+      + simple auth.
 
 Live-tokenizer test done 2026-11-15: the app with the real S11
 weights + real `mother_v006.model` reproduces the recorded S11
@@ -189,7 +237,8 @@ answering).
 | `app.py` | Flask app: chat page, /ask, feedback, export |
 | `mother_model.py` | MotherV008 numpy engine + greedy generation (pure numpy, no torch) |
 | `search.py` | Internet search (no API key) + prompt-context builder |
-| `tests/` | `test_search.py` (offline suite) + `test_search_live.py` (real backends) + fixtures |
+| `memory.py` | Conversation memory (session ids, history caps, Conversation prompt builder) |
+| `tests/` | `test_search.py` (offline suite) + `test_memory.py` (offline suite) + `test_search_live.py` (real backends) + fixtures |
 | `templates/index.html` | The chat page (mobile-friendly) |
 | `templates/feedback.html` | Simple feedback table |
 | `requirements.txt` | numpy + sentencepiece + flask + gunicorn |
